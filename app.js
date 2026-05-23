@@ -1,6 +1,5 @@
-//Sostituita la vecchia riga di jsdelivr con questa di unpkg
-//import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
-import { FilesetResolver, FaceLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
+// Importiamo i moduli direttamente dalla CDN ufficiale con l'estensione mjs
+import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
@@ -9,59 +8,51 @@ const statusText = document.getElementById("statusText");
 const alarmAudio = document.getElementById("alarmAudio");
 
 let faceLandmarker;
-let runningMode = "VIDEO";
 let lastVideoTime = -1;
 let distractionStartTime = null;
 let isSessionActive = false;
 
-// Disabilitiamo il pulsante all'avvio finché l'IA non è pronta
+// Prepariamo visivamente il bottone
 startButton.disabled = true;
-startButton.innerText = "Caricamento IA in corso...";
+startButton.innerText = "Caricamento IA di Google...";
 startButton.style.opacity = "0.5";
 
-// 1. Inizializza l'Intelligenza Artificiale di Google MediaPipe
 async function initializeFaceDetection() {
     try {
-        statusText.innerText = "Caricamento Modello IA...";
-        //const vision = await FilesetResolver.forVisionTasks(
-           // "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-        //Sostituita la vecchia riga di jsdelivr con questa di unpkg
-        const vision = await FilesetResolver.forVisionTasks(
-         "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/wasm"
-        );    
+        statusText.innerText = "Connessione ai server IA...";
         
+        // Risolve i file WebAssembly necessari per far girare l'algoritmo nel browser
+        const vision = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
         
+        // Creiamo il rilevatore facciale
         faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
                 delegate: "GPU"
             },
             outputFaceBlendshapes: true,
-            runningMode: runningMode,
+            runningMode: "VIDEO",
             numFaces: 1
         });
         
         statusText.innerText = "Pronta per lo studio! Clicca sotto per iniziare.";
-        // Sblocchiamo il pulsante una volta che tutto è pronto
         startButton.disabled = false;
         startButton.innerText = "Avvia Sessione Studio";
         startButton.style.opacity = "1";
-        console.log("MediaPipe FaceLandmarker caricato con successo!");
+        console.log("MediaPipe sbloccato e pronto!");
     } catch (error) {
-        console.error("Errore nel caricamento di MediaPipe:", error);
-        statusText.innerText = "Errore nel caricamento dell'IA. Controlla la console.";
-        startButton.innerText = "Errore di caricamento";
+        console.error("Errore di inizializzazione:", error);
+        statusText.innerText = "Errore nel caricamento dei moduli. Ricarica la pagina.";
+        startButton.innerText = "Errore Connessione IA";
     }
 }
 
-// 2. Attiva la Webcam
 async function startWebcam() {
     const constraints = { video: { width: 640, height: 480 } };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = stream;
-    
-    // Usiamo una promessa per assicurarci che il video sia pronto prima di avviare il loop
     return new Promise((resolve) => {
         video.onloadeddata = () => {
             video.play();
@@ -70,8 +61,7 @@ async function startWebcam() {
     });
 }
 
-// 3. Il ciclo continuo di analisi
-async function predictLoop() {
+function predictLoop() {
     if (!isSessionActive) return;
 
     let nowInMs = Date.now();
@@ -81,19 +71,27 @@ async function predictLoop() {
         if (faceLandmarker) {
             const results = faceLandmarker.detectForVideo(video, nowInMs);
             
-            if (results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
-                const matrix = results.facialTransformationMatrixes[0];
-                const yaw = matrix[2]; // Rotazione destra/sinistra
+            // CONTROLLO DISTRAZIONE:
+            // Se l'IA rileva i punti del viso
+            if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                const landmarks = results.faceLandmarks[0];
                 
-                const isLookingAway = Math.abs(yaw) > 0.25;
+                // Prendiamo due punti geometrici del viso per capire se la testa è girata:
+                // Punto 33 (angolo esterno occhio sinistro) e Punto 263 (angolo esterno occhio destro)
+                // Se la testa si gira molto di lato, la distanza apparente tra gli occhi davanti alla webcam si riduce
+                const eyeLeft = landmarks[33];
+                const eyeRight = landmarks[263];
+                const eyeDistance = Math.abs(eyeLeft.x - eyeRight.x);
 
-                if (isLookingAway) {
+                // Se la distanza degli occhi scende sotto una certa soglia, significa che la testa è girata di profilo
+                // Oppure se l'utente guarda totalmente in basso/alto
+                if (eyeDistance < 0.18) {
                     handleDistraction();
                 } else {
                     handleFocused();
                 }
             } else {
-                // Nessun volto rilevato (es. si è alzata)
+                // Se non vede proprio la faccia (es. ti sei alzata o hai coperto la webcam col telefono)
                 handleDistraction();
             }
         }
@@ -109,6 +107,7 @@ function handleDistraction() {
 
     const secondsDistracted = (Date.now() - distractionStartTime) / 1000;
 
+    // Se ti distrai per più di 3 secondi parte il rimprovero
     if (secondsDistracted > 3) {
         statusCard.className = "status-card status-distracted";
         statusText.innerText = "Mettiti composta e studia! 🚨";
@@ -128,26 +127,20 @@ function handleFocused() {
     }
 }
 
-// Gestione del click sul pulsante
 startButton.addEventListener("click", async () => {
-    // Se l'IA non è ancora caricata, blocca il click per sicurezza
-    if (!faceLandmarker) {
-        console.log("L'IA si sta ancora caricando, attendi...");
-        return;
-    }
+    if (!faceLandmarker) return;
 
     if (!isSessionActive) {
         try {
             isSessionActive = true;
-            startButton.innerText = "Inizializzazione fotocamera...";
+            startButton.innerText = "Connessione webcam...";
             await startWebcam();
             startButton.innerText = "Ferma Sessione";
             startButton.style.backgroundColor = "#f75151";
-            // Avvia il ciclo di predizione
             predictLoop();
         } catch (err) {
-            console.error("Errore nell'accesso alla webcam:", err);
-            statusText.innerText = "Impossibile accedere alla webcam. Controlla i permessi del browser.";
+            console.error("Errore webcam:", err);
+            statusText.innerText = "Impossibile accedere alla webcam. Controlla i permessi.";
             isSessionActive = false;
             startButton.innerText = "Avvia Sessione Studio";
         }
@@ -166,5 +159,5 @@ startButton.addEventListener("click", async () => {
     }
 });
 
-// Avvia il caricamento dell'IA all'apertura della pagina
+// Avvia il caricamento dei moduli di Google
 initializeFaceDetection();
