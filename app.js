@@ -1,59 +1,35 @@
-import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
-
-const video = document.getElementById("webcam");
-const startButton = document.getElementById("startButton");
-const statusCard = document.getElementById("statusCard");
-const statusText = document.getElementById("statusText");
-const alarmAudio = document.getElementById("alarmAudio");
-const distractionOverlay = document.getElementById("distractionOverlay");
-const studioPointsText = document.getElementById("studioPoints");
-const pomodoroTimerText = document.getElementById("pomodoroTimer");
-const pomodoroPhaseText = document.getElementById("pomodoroPhase");
-const sensitivitySlider = document.getElementById("sensitivitySlider");
-const sensitivityValue = document.getElementById("sensitivityValue");
-const soundSelect = document.getElementById("soundSelect");
-
-const todoInput = document.getElementById("todoInput");
-const todoList = document.getElementById("todoList");
-const myPeerIdText = document.getElementById("myPeerId");
-const connectIdInput = document.getElementById("connectIdInput");
-const connectionStatus = document.getElementById("connectionStatus");
-const multiplayerLog = document.getElementById("multiplayerLog");
-
-let faceLandmarker;
-let lastVideoTime = -1;
-let distractionStartTime = null;
-let isSessionActive = false;
-let points = 0;
-let pointsInterval;
-
-let pomodoroMinutes = 25;
-let pomodoroSeconds = 0;
-let pomodoroInterval;
-let currentPhase = "STUDIO"; 
-
-let currentSensitivity = parseFloat(sensitivitySlider.value); 
-let peer;
-let currentConnection = null;
-
 // ==========================================
-// MULTIPLAYER P2P (PeerJS)
+// MULTIPLAYER P2P CON VIDEOCHIAMATA (PeerJS)
 // ==========================================
+const videoGrid = document.getElementById("videoGrid");
+let localStream = null; // Memorizzerà il flusso della tua webcam
+
 function initializeMultiplayer() {
-    // Creiamo l'istanza PeerJS. Se non passiamo parametri usa i loro server cloud gratuiti
     peer = new Peer();
 
     peer.on('open', (id) => {
         myPeerIdText.innerText = `ID: ${id}`;
-        console.log("ID PeerJS generato con successo:", id);
+        console.log("ID PeerJS generato:", id);
     });
 
-    peer.on('error', (err) => {
-        console.error("Errore PeerJS:", err);
-    });
-
+    // 1. ASCOLTA LE CHIAMATE DATI (Testo/Distrazioni)
     peer.on('connection', (conn) => {
         setupConnection(conn);
+    });
+
+    // 2. ASCOLTA LE CHIAMATE VIDEO IN ENTRATA
+    peer.on('call', (call) => {
+        // Rispondi alla chiamata inviando il tuo flusso video locale
+        if (localStream) {
+            call.answer(localStream);
+            
+            // Ricevi il flusso video dell'amica che ti sta chiamando
+            call.on('stream', (friendStream) => {
+                addFriendVideoElement(call.peer, friendStream);
+            });
+        } else {
+            console.log("Avvia prima la tua webcam per poter rispondere alla videochiamata!");
+        }
     });
 }
 
@@ -65,33 +41,71 @@ function setupConnection(conn) {
     conn.on('data', (data) => {
         if (data.type === 'DISTRACTED') {
             logFriendEvent(`⚠️ L'amica si è DISTRATTA!`);
+            evidenziaDistrazioneAmica(conn.peer, true);
         } else if (data.type === 'FOCUSED') {
             logFriendEvent(`✅ L'amica è tornata a studiare.`);
+            evidenziaDistrazioneAmica(conn.peer, false);
         }
     });
 }
 
-function logFriendEvent(message) {
-    const p = document.createElement("p");
-    p.className = message.includes("DISTRACTED") ? "log-alert" : "";
-    p.innerText = `[${new Date().toLocaleTimeString()}] ${message}`;
-    multiplayerLog.prepend(p);
+// Funzione per agganciare il video dell'amica alla griglia HTML
+function addFriendVideoElement(friendPeerId, friendStream) {
+    // Evitiamo di duplicare il riquadro se esiste già
+    if (document.getElementById(`video-${friendPeerId}`)) return;
+
+    const videoBox = document.createElement("div");
+    videoBox.className = "video-box";
+    videoBox.id = `video-${friendPeerId}`;
+
+    const friendVideo = document.createElement("video");
+    friendVideo.srcObject = friendStream;
+    friendVideo.autoplay = true;
+    friendVideo.playsInline = true;
+
+    const label = document.createElement("div");
+    label.className = "video-label";
+    label.innerText = `Amica (${friendPeerId.substring(0, 5)}...)`;
+
+    videoBox.appendChild(friendVideo);
+    videoBox.appendChild(label);
+    videoGrid.appendChild(videoBox);
 }
 
+// Se l'amica si distrae, possiamo colorare di rosso il suo riquadro video nella griglia!
+function evidenziaDistrazioneAmica(friendPeerId, isDistracted) {
+    const friendBox = document.getElementById(`video-${friendPeerId}`);
+    if (friendBox) {
+        if (isDistracted) {
+            friendBox.style.borderColor = "#f75151";
+            friendBox.style.boxShadow = "0 0 15px rgba(247, 81, 81, 0.5)";
+        } else {
+            friendBox.style.borderColor = "#29292e";
+            friendBox.style.boxShadow = "none";
+        }
+    }
+}
+
+// Pulsante per connettersi a un'amica
 document.getElementById("connectBtn").addEventListener("click", () => {
     const targetId = connectIdInput.value.trim();
     if (targetId && peer) {
+        if (!localStream) {
+            alert("Devi prima cliccare su 'Avvia Sessione Studio' per attivare la tua webcam!");
+            return;
+        }
+
         connectionStatus.innerText = "Connessione in corso...";
+        
+        // Fai partire la connessione dati (per inviare le distrazioni)
         const conn = peer.connect(targetId);
         setupConnection(conn);
-    }
-});
 
-document.getElementById("copyIdBtn").addEventListener("click", () => {
-    const idText = myPeerIdText.innerText.replace("ID: ", "");
-    if(!idText.includes("Caricamento")) {
-        navigator.clipboard.writeText(idText);
-        alert("ID Copiato!");
+        // Fai partire la videochiamata vera e propria
+        const call = peer.call(targetId, localStream);
+        call.on('stream', (friendStream) => {
+            addFriendVideoElement(targetId, friendStream);
+        });
     }
 });
 
@@ -186,6 +200,7 @@ async function initializeFaceDetection() {
 async function startWebcam() {
     const constraints = { video: { width: 640, height: 480 } };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    localStream = stream;     
     video.srcObject = stream;
     return new Promise((resolve) => video.onloadeddata = () => { video.play(); resolve(); });
 }
