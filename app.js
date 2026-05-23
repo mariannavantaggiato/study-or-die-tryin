@@ -1,34 +1,76 @@
+// Importazione nativa ufficiale tramite modulo .mjs (Niente errori CORS)
+import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
+
+// Elementi UI
+const video = document.getElementById("webcam");
+const startButton = document.getElementById("startButton");
+const statusCard = document.getElementById("statusCard");
+const statusText = document.getElementById("statusText");
+const alarmAudio = document.getElementById("alarmAudio");
+const distractionOverlay = document.getElementById("distractionOverlay");
+const studioPointsText = document.getElementById("studioPoints");
+const pomodoroTimerText = document.getElementById("pomodoroTimer");
+const pomodoroPhaseText = document.getElementById("pomodoroPhase");
+const sensitivitySlider = document.getElementById("sensitivitySlider");
+const sensitivityValue = document.getElementById("sensitivityValue");
+const soundSelect = document.getElementById("soundSelect");
+
+const todoInput = document.getElementById("todoInput");
+const todoList = document.getElementById("todoList");
+const myPeerIdText = document.getElementById("myPeerId");
+const connectIdInput = document.getElementById("connectIdInput");
+const connectionStatus = document.getElementById("connectionStatus");
+const multiplayerLog = document.getElementById("multiplayerLog");
+const videoGrid = document.getElementById("videoGrid");
+
+// Stati Generali dell'Applicazione
+let faceLandmarker;
+let lastVideoTime = -1;
+let distractionStartTime = null;
+let isSessionActive = false;
+let points = 0;
+let pointsInterval;
+
+let pomodoroMinutes = 25;
+let pomodoroSeconds = 0;
+let pomodoroInterval;
+let currentPhase = "STUDIO"; 
+
+let currentSensitivity = parseFloat(sensitivitySlider.value); 
+let localStream = null;
+
+// DICHIARAZIONE GLOBALE DI PEER (Risolve il ReferenceError)
+let peer = null; 
+let currentConnection = null;
+
 // ==========================================
 // MULTIPLAYER P2P CON VIDEOCHIAMATA (PeerJS)
 // ==========================================
-const videoGrid = document.getElementById("videoGrid");
-let localStream = null; // Memorizzerà il flusso della tua webcam
-
 function initializeMultiplayer() {
-    peer = new Peer();
+    // Sfrutta l'oggetto Peer caricato globalmente dall'HTML
+    peer = new window.Peer();
 
     peer.on('open', (id) => {
         myPeerIdText.innerText = `ID: ${id}`;
-        console.log("ID PeerJS generato:", id);
+        console.log("ID PeerJS generato con successo:", id);
     });
 
-    // 1. ASCOLTA LE CHIAMATE DATI (Testo/Distrazioni)
+    peer.on('error', (err) => {
+        console.error("Errore di rete PeerJS:", err);
+    });
+
     peer.on('connection', (conn) => {
         setupConnection(conn);
     });
 
-    // 2. ASCOLTA LE CHIAMATE VIDEO IN ENTRATA
     peer.on('call', (call) => {
-        // Rispondi alla chiamata inviando il tuo flusso video locale
         if (localStream) {
             call.answer(localStream);
-            
-            // Ricevi il flusso video dell'amica che ti sta chiamando
             call.on('stream', (friendStream) => {
                 addFriendVideoElement(call.peer, friendStream);
             });
         } else {
-            console.log("Avvia prima la tua webcam per poter rispondere alla videochiamata!");
+            console.log("Accendi la webcam per rispondere alla chiamata della tua amica!");
         }
     });
 }
@@ -49,9 +91,7 @@ function setupConnection(conn) {
     });
 }
 
-// Funzione per agganciare il video dell'amica alla griglia HTML
 function addFriendVideoElement(friendPeerId, friendStream) {
-    // Evitiamo di duplicare il riquadro se esiste già
     if (document.getElementById(`video-${friendPeerId}`)) return;
 
     const videoBox = document.createElement("div");
@@ -72,8 +112,7 @@ function addFriendVideoElement(friendPeerId, friendStream) {
     videoGrid.appendChild(videoBox);
 }
 
-// Se l'amica si distrae, possiamo colorare di rosso il suo riquadro video nella griglia!
-function evidenziaDistrazioneAmica(friendPeerId, isDistracted) {
+function BlanketDistractionNotification(friendPeerId, isDistracted) {
     const friendBox = document.getElementById(`video-${friendPeerId}`);
     if (friendBox) {
         if (isDistracted) {
@@ -86,26 +125,36 @@ function evidenziaDistrazioneAmica(friendPeerId, isDistracted) {
     }
 }
 
-// Pulsante per connettersi a un'amica
+function logFriendEvent(message) {
+    const p = document.createElement("p");
+    p.className = message.includes("DISTRACTED") ? "log-alert" : "";
+    p.innerText = `[${new Date().toLocaleTimeString()}] ${message}`;
+    multiplayerLog.prepend(p);
+}
+
 document.getElementById("connectBtn").addEventListener("click", () => {
     const targetId = connectIdInput.value.trim();
     if (targetId && peer) {
         if (!localStream) {
-            alert("Devi prima cliccare su 'Avvia Sessione Studio' per attivare la tua webcam!");
+            alert("Attiva prima la tua webcam cliccando su 'Avvia Sessione Studio'!");
             return;
         }
-
         connectionStatus.innerText = "Connessione in corso...";
-        
-        // Fai partire la connessione dati (per inviare le distrazioni)
         const conn = peer.connect(targetId);
         setupConnection(conn);
 
-        // Fai partire la videochiamata vera e propria
         const call = peer.call(targetId, localStream);
         call.on('stream', (friendStream) => {
             addFriendVideoElement(targetId, friendStream);
         });
+    }
+});
+
+document.getElementById("copyIdBtn").addEventListener("click", () => {
+    const idText = myPeerIdText.innerText.replace("ID: ", "");
+    if(!idText.includes("Caricamento")) {
+        navigator.clipboard.writeText(idText);
+        alert("ID Copiato negli appunti!");
     }
 });
 
@@ -171,9 +220,8 @@ async function initializeFaceDetection() {
     try {
         statusText.innerText = "Connessione ai server IA...";
         
-        // Peschiamo i file di supporto wasm sempre da unpkg
         const vision = await FilesetResolver.forVisionTasks(
-            "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/wasm"
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
         
         faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -200,7 +248,7 @@ async function initializeFaceDetection() {
 async function startWebcam() {
     const constraints = { video: { width: 640, height: 480 } };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    localStream = stream;     
+    localStream = stream; 
     video.srcObject = stream;
     return new Promise((resolve) => video.onloadeddata = () => { video.play(); resolve(); });
 }
@@ -323,6 +371,6 @@ startButton.addEventListener("click", async () => {
     }
 });
 
-// Inizializzazioni all'avvio
+// Inizializzazione controllata dei servizi
 initializeFaceDetection();
 initializeMultiplayer();
