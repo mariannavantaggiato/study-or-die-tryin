@@ -45,9 +45,14 @@
                 <span id="statusText">Inizializzazione IA di Google...</span>
             </div>
 
-            <div class="video-container">
-                <video id="webcam" autoplay playsinline></video>
-                <div id="distractionOverlay" class="distraction-overlay">DIS-TRAT-TA! 🚨</div>
+            <!-- Sostituisci il vecchio video-container con questo -->
+            <div class="video-grid" id="videoGrid">
+                <div class="video-box local-video">
+                    <video id="webcam" autoplay playsinline muted></video>
+                <div class="video-label">Tu</div>
+                    <div id="distractionOverlay" class="distraction-overlay">DIS-TRAT-TA! 🚨</div>
+                </div>
+    <!-- I video delle tue amiche verranno inseriti qui dinamicamente da JavaScript -->
             </div>
 
             <button id="startButton">Avvia Sessione Studio</button>
