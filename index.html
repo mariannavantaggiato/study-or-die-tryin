@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Room - Stay Focused!</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Solo PeerJS nell'head -->
+    <!-- Carichiamo solo PeerJS nell'head come script globale standard -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -45,14 +45,12 @@
                 <span id="statusText">Inizializzazione IA di Google...</span>
             </div>
 
-            <!-- Sostituisci il vecchio video-container con questo -->
             <div class="video-grid" id="videoGrid">
                 <div class="video-box local-video">
                     <video id="webcam" autoplay playsinline muted></video>
-                <div class="video-label">Tu</div>
+                    <div class="video-label">Tu</div>
                     <div id="distractionOverlay" class="distraction-overlay">DIS-TRAT-TA! 🚨</div>
                 </div>
-    <!-- I video delle tue amiche verranno inseriti qui dinamicamente da JavaScript -->
             </div>
 
             <button id="startButton">Avvia Sessione Studio</button>
@@ -96,7 +94,7 @@
     </div>
 
     <audio id="alarmAudio" src="sveglia.mp3" loop></audio>
-    <!-- Caricato rigorosamente come MODULO -->
+    <!-- Caricato rigorosamente come MODULO JAVASCRIPT -->
     <script src="app.js" type="module"></script>
 </body>
 </html>
