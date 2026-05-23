@@ -1,5 +1,4 @@
 import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
-
 // Elementi UI
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
