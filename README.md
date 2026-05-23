@@ -65,8 +65,8 @@ L'applicazione richiede l'esecuzione all'interno di un contesto sicuro (Secure C
 
 3. Apri il browser all'indirizzo http://localhost:8000.
 
-##🌐 Deploy in Produzione
+## 🌐 Deploy in Produzione
 Il progetto è pubblicato e accessibile tramite GitHub Pages al seguente indirizzo:
-🔗 https://mariannavantaggiato.github.io/study-or-die-tryin/
+🔗 `https://mariannavantaggiato.github.io/study-or-die-tryin/`
 
 Nota: Per il corretto funzionamento delle funzionalità multiplayer e dell'accesso hardware alla webcam, l'applicazione impone l'instradamento esclusivo su protocollo cifrato HTTPS.
