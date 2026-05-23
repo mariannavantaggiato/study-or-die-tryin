@@ -1,4 +1,8 @@
-import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
+const FilesetResolver = mpVision.FilesetResolver;
+const FaceLandmarker = mpVision.FaceLandmarker;
+
+const video = document.getElementById("webcam");
+
 // Elementi UI
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
