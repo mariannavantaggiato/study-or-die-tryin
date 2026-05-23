@@ -5,30 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Room - Stay Focused!</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Carichiamo le librerie ufficiali di MediaPipe per il tracciamento del volto -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs" crossorigin="anonymous"></script>
+    <!-- Libreria per il Multiplayer Peer-to-Peer gratuito -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Amos Study Room 📚</h1>
-        <p class="subtitle">Entra in modalità focus. Se distogli lo sguardo, verrai ripresa!</p>
+    <div class="app-layout">
+        <!-- COLONNA SINISTRA: STANZA DI STUDIO -->
+        <div class="main-content">
+            <h1>Study Room 📚</h1>
+            
+            <!-- Area Multiplayer -->
+            <div class="multiplayer-panel">
+                <div class="mp-row">
+                    <span id="myPeerId">Il tuo ID: Caricamento...</span>
+                    <button id="copyIdBtn">Copia ID</button>
+                </div>
+                <div class="mp-row">
+                    <input type="text" id="connectIdInput" placeholder="Inserisci ID dell'amica">
+                    <button id="connectBtn">Connettiti</button>
+                </div>
+                <div id="connectionStatus">Modalità: Studio Singolo</div>
+            </div>
 
-        <div class="status-card" id="statusCard">
-            <span id="statusText">Sistema non avviato</span>
+            <!-- Pannello Pomodoro e Punti -->
+            <div class="dashboard-row">
+                <div class="stat-box">
+                    <h3>Punti Studio</h3>
+                    <p id="studioPoints">0 XP</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Timer Pomodoro</h3>
+                    <p id="pomodoroTimer">25:00</p>
+                    <span id="pomodoroPhase">Studio</span>
+                </div>
+            </div>
+
+            <div class="status-card" id="statusCard">
+                <span id="statusText">Inizializzazione IA di Google...</span>
+            </div>
+
+            <div class="video-container">
+                <video id="webcam" autoplay playsinline></video>
+                <div id="distractionOverlay" class="distraction-overlay">DIS-TRAT-TA! 🚨</div>
+            </div>
+
+            <button id="startButton">Avvia Sessione Studio</button>
+
+            <!-- Impostazioni Personali -->
+            <div class="settings-panel">
+                <div class="setting-item">
+                    <label for="soundSelect">Suono di Rimprovero:</label>
+                    <select id="soundSelect">
+                        <option value="sveglia.mp3">Suono Base</option>
+                        <option value="militare.mp3">Sveglia Militare</option>
+                        <option value="buffo.mp3">Meme Buffo</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="sensitivitySlider">Sensibilità Sguardo (Libri/Ripetizione):</label>
+                    <input type="range" id="sensitivitySlider" min="0.10" max="0.40" step="0.02" value="0.30">
+                    <span id="sensitivityValue">Tollerante</span>
+                </div>
+            </div>
         </div>
 
-        <div class="video-container">
-            <!-- La webcam viene proiettata qui -->
-            <video id="webcam" autoplay playsinline></video>
-            <div class="overlay-grid"></div>
-        </div>
+        <!-- COLONNA DESTRA: OBIETTIVI E NOTIFICHE MULTIPLAYER -->
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h2>Obiettivi del Giorno</h2>
+                <div class="todo-input-row">
+                    <input type="text" id="todoInput" placeholder="Nuovo obiettivo...">
+                    <button id="addTodoBtn">+</button>
+                </div>
+                <ul id="todoList"></ul>
+            </div>
 
-        <button id="startButton">Avvia Sessione Studio</button>
+            <div class="sidebar-section">
+                <h2>Notifiche Amiche</h2>
+                <div id="multiplayerLog" class="log-box">
+                    <p class="log-placeholder">Nessun evento. Connettiti con un'amica!</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <audio id="alarmAudio" src="sveglia.mp3" loop></audio>
-
     <script src="app.js" type="module"></script>
 </body>
 </html>
