@@ -1,5 +1,4 @@
-// IMPORTANTE: Usiamo unpkg che non ha i bug di formato di jsdelivr
-import { FilesetResolver, FaceLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
+import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
