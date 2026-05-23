@@ -12,25 +12,40 @@ let lastVideoTime = -1;
 let distractionStartTime = null;
 let isSessionActive = false;
 
+// Disabilitiamo il pulsante all'avvio finché l'IA non è pronta
+startButton.disabled = true;
+startButton.innerText = "Caricamento IA in corso...";
+startButton.style.opacity = "0.5";
+
 // 1. Inizializza l'Intelligenza Artificiale di Google MediaPipe
 async function initializeFaceDetection() {
-    statusText.innerText = "Caricamento Modello IA...";
-    const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-    );
-    
-    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-            delegate: "GPU"
-        },
-        outputFaceBlendshapes: true,
-        runningMode: runningMode,
-        numFaces: 1
-    });
-    
-    statusText.innerText = "Pronta per lo studio! Clicca sotto per iniziare.";
-    startButton.disabled = false;
+    try {
+        statusText.innerText = "Caricamento Modello IA...";
+        const vision = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        );
+        
+        faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                delegate: "GPU"
+            },
+            outputFaceBlendshapes: true,
+            runningMode: runningMode,
+            numFaces: 1
+        });
+        
+        statusText.innerText = "Pronta per lo studio! Clicca sotto per iniziare.";
+        // Sblocchiamo il pulsante una volta che tutto è pronto
+        startButton.disabled = false;
+        startButton.innerText = "Avvia Sessione Studio";
+        startButton.style.opacity = "1";
+        console.log("MediaPipe FaceLandmarker caricato con successo!");
+    } catch (error) {
+        console.error("Errore nel caricamento di MediaPipe:", error);
+        statusText.innerText = "Errore nel caricamento dell'IA. Controlla la console.";
+        startButton.innerText = "Errore di caricamento";
+    }
 }
 
 // 2. Attiva la Webcam
@@ -38,10 +53,17 @@ async function startWebcam() {
     const constraints = { video: { width: 640, height: 480 } };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = stream;
-    video.addEventListener("loadeddata", predictLoop);
+    
+    // Usiamo una promessa per assicurarci che il video sia pronto prima di avviare il loop
+    return new Promise((resolve) => {
+        video.onloadeddata = () => {
+            video.play();
+            resolve();
+        };
+    });
 }
 
-// 3. Il ciclo continuo di analisi (gira ad ogni fotogramma)
+// 3. Il ciclo continuo di analisi
 async function predictLoop() {
     if (!isSessionActive) return;
 
@@ -49,30 +71,27 @@ async function predictLoop() {
     if (lastVideoTime !== video.currentTime) {
         lastVideoTime = video.currentTime;
         
-        const results = faceLandmarker.detectForVideo(video, nowInMs);
-        
-        if (results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
-            // Estraiamo la matrice di rotazione per capire dove guarda la testa
-            const matrix = results.facialTransformationMatrixes[0];
+        if (faceLandmarker) {
+            const results = faceLandmarker.detectForVideo(video, nowInMs);
             
-            // Il valore all'indice 2 della matrice ci dice quanto la testa è ruotata a destra o sinistra
-            const yaw = matrix[2]; 
-            
-            // Soglia di tolleranza: se il valore supera 0.25, la testa è girata di lato
-            const isLookingAway = Math.abs(yaw) > 0.25;
+            if (results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
+                const matrix = results.facialTransformationMatrixes[0];
+                const yaw = matrix[2]; // Rotazione destra/sinistra
+                
+                const isLookingAway = Math.abs(yaw) > 0.25;
 
-            if (isLookingAway) {
-                handleDistraction();
+                if (isLookingAway) {
+                    handleDistraction();
+                } else {
+                    handleFocused();
+                }
             } else {
-                handleFocused();
+                // Nessun volto rilevato (es. si è alzata)
+                handleDistraction();
             }
-        } else {
-            // Se non viene rilevato nessun volto (es. si è alzata dalla sedia) conta come distrazione
-            handleDistraction();
         }
     }
     
-    // Richiama la funzione al fotogramma successivo per continuità
     window.requestAnimationFrame(predictLoop);
 }
 
@@ -83,7 +102,6 @@ function handleDistraction() {
 
     const secondsDistracted = (Date.now() - distractionStartTime) / 1000;
 
-    // Se si distrae per più di 3 secondi consecutivi
     if (secondsDistracted > 3) {
         statusCard.className = "status-card status-distracted";
         statusText.innerText = "Mettiti composta e studia! 🚨";
@@ -99,24 +117,42 @@ function handleFocused() {
     statusText.innerText = "Stai andando alla grande! Continua così 💪";
     if (!alarmAudio.paused) {
         alarmAudio.pause();
-        alarmAudio.currentTime = 0; // Resetta l'audio dall'inizio
+        alarmAudio.currentTime = 0;
     }
 }
 
 // Gestione del click sul pulsante
 startButton.addEventListener("click", async () => {
+    // Se l'IA non è ancora caricata, blocca il click per sicurezza
+    if (!faceLandmarker) {
+        console.log("L'IA si sta ancora caricando, attendi...");
+        return;
+    }
+
     if (!isSessionActive) {
-        isSessionActive = true;
-        startButton.innerText = "Ferma Sessione";
-        startButton.style.backgroundColor = "#f75151";
-        await startWebcam();
+        try {
+            isSessionActive = true;
+            startButton.innerText = "Inizializzazione fotocamera...";
+            await startWebcam();
+            startButton.innerText = "Ferma Sessione";
+            startButton.style.backgroundColor = "#f75151";
+            // Avvia il ciclo di predizione
+            predictLoop();
+        } catch (err) {
+            console.error("Errore nell'accesso alla webcam:", err);
+            statusText.innerText = "Impossibile accedere alla webcam. Controlla i permessi del browser.";
+            isSessionActive = false;
+            startButton.innerText = "Avvia Sessione Studio";
+        }
     } else {
         isSessionActive = false;
         startButton.innerText = "Avvia Sessione Studio";
         startButton.style.backgroundColor = "#8257e5";
-        // Spegne la webcam
-        const tracks = video.srcObject.getTracks();
-        tracks.forEach(track => track.stop());
+        
+        if (video.srcObject) {
+            const tracks = video.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+        }
         alarmAudio.pause();
         statusCard.className = "status-card";
         statusText.innerText = "Sessione terminata.";
