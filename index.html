@@ -1,11 +1,13 @@
-<!DOCTYPE html>
-<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Room - Stay Focused!</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Teniamo solo PeerJS qui, MediaPipe lo lasciamo gestire ad app.js -->
+    
+    <!-- Carichiamo MediaPipe come script globale -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    
+    <!-- Carichiamo PeerJS per il multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -91,6 +93,5 @@
     </div>
 
     <audio id="alarmAudio" src="sveglia.mp3" loop></audio>
-    <script src="app.js" type="module"></script>
-</body>
+    <script src="app.js"></script></body>
 </html>
