@@ -1,4 +1,6 @@
-import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
+//Sostituita la vecchia riga di jsdelivr con questa di unpkg
+//import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
+import { FilesetResolver, FaceLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
 
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
@@ -21,8 +23,13 @@ startButton.style.opacity = "0.5";
 async function initializeFaceDetection() {
     try {
         statusText.innerText = "Caricamento Modello IA...";
+        //const vision = await FilesetResolver.forVisionTasks(
+           // "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        //Sostituita la vecchia riga di jsdelivr con questa di unpkg
         const vision = await FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+         "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/wasm"
+        );    
+        
         );
         
         faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
