@@ -6,88 +6,149 @@ body {
     color: #e1e1e6;
     display: flex;
     justify-content: center;
-    align-items: center;
     min-height: 100vh;
 }
 
-.container {
-    text-align: center;
-    max-width: 640px;
+.app-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 30px;
+    max-width: 1100px;
     width: 100%;
-    padding: 20px;
+    padding: 30px;
 }
 
-h1 {
-    font-size: 2.5rem;
-    margin-bottom: 5px;
+.main-content {
+    background-color: #1a1a1e;
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid #29292e;
+    text-align: center;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sidebar-section {
+    background-color: #1a1a1e;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #29292e;
+}
+
+h1, h2 {
+    margin-top: 0;
     color: #ffffff;
 }
 
-.subtitle {
-    color: #8f8f9d;
-    margin-bottom: 25px;
+/* Dashboard Statistiche */
+.dashboard-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
-.status-card {
+.stat-box {
     background-color: #202024;
     padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #29292e;
+}
+
+.stat-box h3 { margin: 0; font-size: 0.9rem; color: #8f8f9d; }
+.stat-box p { margin: 5px 0 0 0; font-size: 1.8rem; font-weight: bold; color: #ffffff; }
+#pomodoroPhase { font-size: 0.8rem; color: #8257e5; font-weight: bold; }
+
+/* Status Card */
+.status-card {
+    background-color: #202024;
+    padding: 12px;
     border-radius: 8px;
     margin-bottom: 20px;
     font-weight: bold;
-    border: 2px solid #29292e;
-    transition: all 0.3s ease;
 }
+.status-focused { border: 1px solid #04d361; color: #04d361; background: rgba(4, 211, 97, 0.05); }
+.status-distracted { border: 1px solid #f75151; color: #f75151; background: rgba(247, 81, 81, 0.05); }
 
-/* Classi dinamiche che cambieremo via JavaScript */
-.status-focused {
-    border-color: #04d361;
-    color: #04d361;
-    background-color: rgba(4, 211, 97, 0.1);
-}
-
-.status-distracted {
-    border-color: #f75151;
-    color: #f75151;
-    background-color: rgba(247, 81, 81, 0.1);
-    animation: pulse 1s infinite;
-}
-
+/* Webcam e Schermata rossa */
 .video-container {
     position: relative;
     width: 100%;
     border-radius: 12px;
     overflow: hidden;
     background-color: #000;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     aspect-ratio: 4 / 3;
 }
 
-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1); /* Effetto specchio naturale */
+video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+.distraction-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(247, 81, 81, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    font-size: 3rem;
+    font-weight: bold;
+    color: white;
 }
+
+/* Settings */
+.settings-panel {
+    margin-top: 25px;
+    background: #202024;
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: left;
+}
+
+.setting-item { display: flex; flex-direction: column; gap: 5px; }
+.setting-item label { font-size: 0.85rem; color: #8f8f9d; }
+select, input[type="text"] {
+    background: #121214; color: white; border: 1px solid #29292e;
+    padding: 10px; border-radius: 6px;
+}
+
+/* Lista Obiettivi */
+.todo-input-row { display: flex; gap: 10px; margin-bottom: 15px; }
+.todo-input-row input { flex: 1; }
+#addTodoBtn { background: #8257e5; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; }
+
+#todoList { list-style: none; padding: 0; margin: 0; text-align: left; }
+#todoList li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #29292e;
+}
+#todoList li.completed span { text-decoration: line-through; color: #8f8f9d; }
+
+/* Pannello Multiplayer */
+.multiplayer-panel {
+    background: #202024; padding: 12px; border-radius: 12px;
+    margin-bottom: 20px; font-size: 0.9rem;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.mp-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mp-row input { flex: 1; padding: 5px; font-size: 0.8rem; }
+.mp-row button { margin: 0; padding: 5px 10px; font-size: 0.8rem; }
+
+#connectionStatus { font-weight: bold; color: #8257e5; text-align: left; margin-top: 5px; }
+.log-box {
+    background: #121214; padding: 10px; border-radius: 8px;
+    height: 150px; overflow-y: auto; text-align: left; font-size: 0.85rem;
+}
+.log-alert { color: #f75151; font-weight: bold; margin: 4px 0; }
 
 button {
-    margin-top: 25px;
-    background-color: #8257e5;
-    color: white;
-    border: none;
-    padding: 15px 40px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s;
+    background-color: #8257e5; color: white; border: none;
+    padding: 12px 30px; font-size: 1rem; font-weight: bold;
+    border-radius: 8px; cursor: pointer; transition: background 0.2s;
 }
-
-button:hover {
-    background-color: #9466ff;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
+button:hover { background-color: #9466ff; }
