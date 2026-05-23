@@ -1,9 +1,6 @@
-const FilesetResolver = mpVision.FilesetResolver;
-const FaceLandmarker = mpVision.FaceLandmarker;
+// IMPORTANTE: Usiamo unpkg che non ha i bug di formato di jsdelivr
+import { FilesetResolver, FaceLandmarker } from "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/vision_bundle.js";
 
-const video = document.getElementById("webcam");
-
-// Elementi UI
 const video = document.getElementById("webcam");
 const startButton = document.getElementById("startButton");
 const statusCard = document.getElementById("statusCard");
@@ -17,7 +14,6 @@ const sensitivitySlider = document.getElementById("sensitivitySlider");
 const sensitivityValue = document.getElementById("sensitivityValue");
 const soundSelect = document.getElementById("soundSelect");
 
-// Elementi ToDo e Multiplayer
 const todoInput = document.getElementById("todoInput");
 const todoList = document.getElementById("todoList");
 const myPeerIdText = document.getElementById("myPeerId");
@@ -25,7 +21,6 @@ const connectIdInput = document.getElementById("connectIdInput");
 const connectionStatus = document.getElementById("connectionStatus");
 const multiplayerLog = document.getElementById("multiplayerLog");
 
-// Stati Generali
 let faceLandmarker;
 let lastVideoTime = -1;
 let distractionStartTime = null;
@@ -33,30 +28,31 @@ let isSessionActive = false;
 let points = 0;
 let pointsInterval;
 
-// Stati Pomodoro (25 min studio, 5 min pausa)
 let pomodoroMinutes = 25;
 let pomodoroSeconds = 0;
 let pomodoroInterval;
-let currentPhase = "STUDIO"; // STUDIO o PAUSA
+let currentPhase = "STUDIO"; 
 
-// Stati Sensibilità Personalizzabili (Ottimizzato per lettura libri)
 let currentSensitivity = parseFloat(sensitivitySlider.value); 
-
-// Stati Multiplayer P2P
 let peer;
 let currentConnection = null;
 
 // ==========================================
-// 1. MULTIPLAYER P2P (PeerJS)
+// MULTIPLAYER P2P (PeerJS)
 // ==========================================
 function initializeMultiplayer() {
+    // Creiamo l'istanza PeerJS. Se non passiamo parametri usa i loro server cloud gratuiti
     peer = new Peer();
 
     peer.on('open', (id) => {
         myPeerIdText.innerText = `ID: ${id}`;
+        console.log("ID PeerJS generato con successo:", id);
     });
 
-    // Ascolta le connessioni in entrata dalle amiche
+    peer.on('error', (err) => {
+        console.error("Errore PeerJS:", err);
+    });
+
     peer.on('connection', (conn) => {
         setupConnection(conn);
     });
@@ -67,7 +63,6 @@ function setupConnection(conn) {
     connectionStatus.innerText = `Connessa con un'amica! 👭`;
     multiplayerLog.innerHTML = `<p style="color: #04d361">Connessione stabilita con successo!</p>`;
 
-    // Riceve i messaggi dall'amica
     conn.on('data', (data) => {
         if (data.type === 'DISTRACTED') {
             logFriendEvent(`⚠️ L'amica si è DISTRATTA!`);
@@ -84,10 +79,9 @@ function logFriendEvent(message) {
     multiplayerLog.prepend(p);
 }
 
-// Avvia connessione inserendo l'ID dell'amica
 document.getElementById("connectBtn").addEventListener("click", () => {
     const targetId = connectIdInput.value.trim();
-    if (targetId) {
+    if (targetId && peer) {
         connectionStatus.innerText = "Connessione in corso...";
         const conn = peer.connect(targetId);
         setupConnection(conn);
@@ -96,15 +90,16 @@ document.getElementById("connectBtn").addEventListener("click", () => {
 
 document.getElementById("copyIdBtn").addEventListener("click", () => {
     const idText = myPeerIdText.innerText.replace("ID: ", "");
-    navigator.clipboard.writeText(idText);
-    alert("ID Copiato! Invialo alle tue amiche.");
+    if(!idText.includes("Caricamento")) {
+        navigator.clipboard.writeText(idText);
+        alert("ID Copiato!");
+    }
 });
 
 // ==========================================
-// 2. TIMERS, PUNTI E POMODORO
+// TIMERS, PUNTI E POMODORO
 // ==========================================
 function startStudioSystems() {
-    // Guadagno punti ogni 10 secondi di concentrazione
     pointsInterval = setInterval(() => {
         if (!distractionStartTime && currentPhase === "STUDIO") {
             points += 5;
@@ -112,7 +107,6 @@ function startStudioSystems() {
         }
     }, 10000);
 
-    // Timer Pomodoro
     pomodoroInterval = setInterval(() => {
         if (pomodoroSeconds === 0) {
             if (pomodoroMinutes === 0) {
@@ -145,7 +139,6 @@ function switchPomodoroPhase() {
         pomodoroPhaseText.innerText = "Pausa - Riposati! ☕";
         pomodoroPhaseText.style.color = "#04d361";
         pomodoroMinutes = 5;
-        // In pausa spegniamo provvisoriamente il controllo distrazione
         distractionOverlay.style.display = "none";
         if (!alarmAudio.paused) alarmAudio.pause();
     } else {
@@ -159,11 +152,17 @@ function switchPomodoroPhase() {
 }
 
 // ==========================================
-// 3. INTELLIGENZA ARTIFICIALE (MediaPipe)
+// INTELLIGENZA ARTIFICIALE (MediaPipe)
 // ==========================================
 async function initializeFaceDetection() {
     try {
-        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+        statusText.innerText = "Connessione ai server IA...";
+        
+        // Peschiamo i file di supporto wasm sempre da unpkg
+        const vision = await FilesetResolver.forVisionTasks(
+            "https://unpkg.com/@mediapipe/tasks-vision@0.10.3/wasm"
+        );
+        
         faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
@@ -173,14 +172,15 @@ async function initializeFaceDetection() {
             runningMode: "VIDEO",
             numFaces: 1
         });
+        
         statusText.innerText = "Sistemi pronti per il gruppo!";
         statusCard.className = "status-card status-focused";
         startButton.disabled = false;
         startButton.style.opacity = "1";
         startButton.innerText = "Avvia Sessione Studio";
     } catch (error) {
-        console.error(error);
-        statusText.innerText = "Ricarica la pagina. Errore di inizializzazione.";
+        console.error("Errore IA:", error);
+        statusText.innerText = "Errore nel caricamento dei moduli. Controlla la console.";
     }
 }
 
@@ -203,20 +203,17 @@ function predictLoop() {
             
             if (results.faceLandmarks && results.faceLandmarks.length > 0) {
                 const landmarks = results.faceLandmarks[0];
-                
-                // Tracciamento distanza occhi (Asse X)
                 const eyeLeft = landmarks[33];
                 const eyeRight = landmarks[263];
                 const eyeDistance = Math.abs(eyeLeft.x - eyeRight.x);
 
-                // Se la distanza cala sotto il valore del cursore, significa che si è girata di lato
                 if (eyeDistance < currentSensitivity) {
                     handleDistraction();
                 } else {
                     handleFocused();
                 }
             } else {
-                handleDistraction(); // Faccia non visibile
+                handleDistraction(); 
             }
         }
     }
@@ -226,7 +223,6 @@ function predictLoop() {
 function handleDistraction() {
     if (!distractionStartTime) {
         distractionStartTime = Date.now();
-        // Invia notifica all'amica in tempo reale
         if (currentConnection) currentConnection.send({ type: 'DISTRACTED' });
     }
 
@@ -236,7 +232,7 @@ function handleDistraction() {
         statusCard.className = "status-card status-distracted";
         statusText.innerText = "Distrazione rilevata! Torna sui libri!";
         distractionOverlay.style.display = "flex";
-        if (alarmAudio.paused) alarmAudio.play();
+        if (alarmAudio.paused) alarmAudio.play().catch(e => console.log("Audio in attesa"));
     }
 }
 
@@ -255,10 +251,8 @@ function handleFocused() {
 }
 
 // ==========================================
-// 4. INTERAZIONI UI E SETUP FINALE
+// INTERAZIONI UI E SETUP FINALE
 // ==========================================
-
-// Gestione sensibilità dinamica per lettura libri
 sensitivitySlider.addEventListener("input", (e) => {
     currentSensitivity = parseFloat(e.target.value);
     if (currentSensitivity <= 0.16) {
@@ -270,12 +264,10 @@ sensitivitySlider.addEventListener("input", (e) => {
     }
 });
 
-// Cambio suono di rimprovero in tempo reale
 soundSelect.addEventListener("change", (e) => {
     alarmAudio.src = e.target.value;
 });
 
-// Gestione Lista Obiettivi del Giorno
 document.getElementById("addTodoBtn").addEventListener("click", () => {
     const text = todoInput.value.trim();
     if (text) {
@@ -289,15 +281,24 @@ document.getElementById("addTodoBtn").addEventListener("click", () => {
     }
 });
 
-// Controllo Avvio/Arresto Sessione generale
 startButton.addEventListener("click", async () => {
+    if (!faceLandmarker) return;
+
     if (!isSessionActive) {
-        isSessionActive = true;
-        startButton.innerText = "Ferma Tutto";
-        startButton.style.backgroundColor = "#f75151";
-        await startWebcam();
-        startStudioSystems();
-        predictLoop();
+        try {
+            isSessionActive = true;
+            startButton.innerText = "Connessione webcam...";
+            await startWebcam();
+            startButton.innerText = "Ferma Tutto";
+            startButton.style.backgroundColor = "#f75151";
+            startStudioSystems();
+            predictLoop();
+        } catch (err) {
+            console.error("Errore webcam:", err);
+            statusText.innerText = "Impossibile accedere alla webcam.";
+            isSessionActive = false;
+            startButton.innerText = "Avvia Sessione Studio";
+        }
     } else {
         isSessionActive = false;
         startButton.innerText = "Avvia Sessione Studio";
@@ -308,6 +309,6 @@ startButton.addEventListener("click", async () => {
     }
 });
 
-// Caricamento Iniziale
+// Inizializzazioni all'avvio
 initializeFaceDetection();
 initializeMultiplayer();
